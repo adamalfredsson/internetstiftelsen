@@ -9,7 +9,50 @@ Chat integration with:
 
 Import `internetstiftelsen.excalidraw` into [Excalidraw](https://excalidraw.com/).
 
-## Project
+# Getting started
+
+Install dependencies
+
+```bash
+npm install
+```
+
+## Prerequisites
+
+- OpenAI account
+- Qdrant account
+
+## Environment variables
+
+Copy `.env.example` to `.env` and fill in the values and api keys from accounts listed above.
+
+## Create a collection
+
+Creates a collection on your Qdrant cluster.
+
+```bash
+npm run collection
+```
+
+## Scrape data
+
+Scrapes data from [Internetstiftelsen](https://internetstiftelsen.se/) and saves it to `data.json`.
+
+```bash
+npm run crawl
+```
+
+## Index data
+
+Upload data as vectors to your Qdrant collection.
+
+```bash
+npm run upload
+```
+
+---
+
+## Next.js
 
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
