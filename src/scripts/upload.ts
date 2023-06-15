@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { Configuration, OpenAIApi } from "openai";
 import { join } from "path";
+import { processInBatches } from "../utils/batch";
 
 const main = async () => {
   const storagePath = join(__dirname, "../../storage/datasets/default");
@@ -26,27 +27,32 @@ const main = async () => {
     new Configuration({ apiKey: process.env.OPENAI_API_KEY! })
   );
 
-  const data = await Promise.all(
-    fileContents.slice(0, 5).map(async (page: any, index) => {
-      const chunks = await splitter.splitText(page.content);
+  const data = await processInBatches(
+    fileContents,
+    { batchSize: 100, delay: 1000 },
+    (batch) =>
+      Promise.all(
+        batch.map(async (page: any, index) => {
+          const chunks = await splitter.splitText(page.content);
 
-      return Promise.all(
-        chunks.map(async (chunk) => {
-          const embedding = await openai.createEmbedding({
-            input: chunk,
-            model: "text-embedding-ada-002",
-          });
-          return {
-            vector: embedding.data.data[0].embedding, // ...,
-            payload: {
-              url: page.url,
-              title: page.title,
-              chunk,
-            },
-          };
+          return Promise.all(
+            chunks.map(async (chunk) => {
+              const embedding = await openai.createEmbedding({
+                input: chunk,
+                model: "text-embedding-ada-002",
+              });
+              return {
+                vector: embedding.data.data[0].embedding, // ...,
+                payload: {
+                  url: page.url,
+                  title: page.title,
+                  chunk,
+                },
+              };
+            })
+          );
         })
-      );
-    })
+      )
   );
 
   // ladda upp vektordatabasen
@@ -55,13 +61,18 @@ const main = async () => {
     apiKey: process.env.QDRANT_API_KEY,
   });
 
-  const result = await qdrant.upsert("content", {
-    points: data.flat().map(({ vector, payload }, index) => ({
-      id: index,
-      vector,
-      payload,
-    })),
-  });
+  const result = await processInBatches(
+    data.flat(),
+    { batchSize: 100 },
+    (batch) =>
+      qdrant.upsert("content", {
+        points: batch.map(({ vector, payload }, index) => ({
+          id: index,
+          vector,
+          payload,
+        })),
+      })
+  );
 
   console.log(result);
 };
